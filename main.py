@@ -16,14 +16,14 @@ import adapters
 from adapters import SANITIZERS
 from text_tools import split_by_words, calculate_jaundice_rate
 
-TEST_ARTICLES = [
+TEST_ARTICLES = (
     "https://inosmi.ru/20220223/maslo-253083812.html",
     "https://inosmi.ru/20220221/pitanie-253119215.html",
     "https://inosmi.ru/20220223/chay-253152243.html",
     "https://inosmi.ru/20220222/pitanie-253134875.html",
     "https://inosmi.ru/20220222/sol-253124517.html",
     "http://inosmi.ru/economic/20190629/245384784.html"
-]
+)
 
 analyzer = pymorphy2.MorphAnalyzer()
 TIMEOUT = 3
@@ -67,7 +67,7 @@ def log_execution_time():
         logging.info(f"Анализ закончен за {time.monotonic() - start_time:.2f} сек")
 
 
-async def process_article(article_url, session, negative_words, result: List[Result]):
+async def process_single_article(article_url, session, negative_words, result: List[Result]):
     sanitizer = SANITIZERS["inosmi_ru"]
     status = ProcessingStatus.OK
     rate = None
@@ -89,18 +89,14 @@ async def process_article(article_url, session, negative_words, result: List[Res
     result.append(Result(status, article_url, rate, words_count))
 
 
-async def main():
+async def process_articles(article_urls) -> List[Result]:
     with open("charged_dict/negative_words.txt") as file:
         negative_words = split_by_words(analyzer, file.read())
-    result = []
+    result: List[Result] = []
     async with aiohttp.ClientSession() as session:
         async with anyio.create_task_group() as tg:
-            for article in TEST_ARTICLES:
-                tg.start_soon(process_article, article, session, negative_words, result)
-    for res in result:
-        print(res)
-        print("\n")
+            for article in article_urls:
+                tg.start_soon(process_single_article, article, session, negative_words, result)
+    return result
 
 
-if __name__ == '__main__':
-    asyncio.run(main())
