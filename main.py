@@ -1,11 +1,10 @@
 import asyncio
-import datetime
 import logging
 import time
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 import aiohttp
 import anyio
@@ -41,8 +40,8 @@ class ProcessingStatus(Enum):
 class Result:
     status: ProcessingStatus
     article_url: str
-    rate: float
-    words_count: int
+    rate: Optional[float]
+    words_count: Optional[int]
 
     def __str__(self):
         return (f"Статус: {self.status.value}\n"
@@ -89,8 +88,8 @@ async def process_single_article(article_url, session, negative_words, result: L
     result.append(Result(status, article_url, rate, words_count))
 
 
-async def process_articles(article_urls) -> List[Result]:
-    with open("charged_dict/negative_words.txt") as file:
+async def process_articles(article_urls, path_to_words="charged_dict/negative_words.txt") -> List[Result]:
+    with open(path_to_words) as file:
         negative_words = split_by_words(analyzer, file.read())
     result: List[Result] = []
     async with aiohttp.ClientSession() as session:
@@ -98,5 +97,3 @@ async def process_articles(article_urls) -> List[Result]:
             for article in article_urls:
                 tg.start_soon(process_single_article, article, session, negative_words, result)
     return result
-
-
